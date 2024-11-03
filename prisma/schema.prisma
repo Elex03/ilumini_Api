@@ -1,0 +1,156 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+enum Rol {
+  USUARIO 
+  ADMINISTRADOR
+}
+
+
+model USUARIO {
+  usuario_pk Int      @id @default(autoincrement())
+  correo     String   @db.VarChar(30)
+  contrasena String   @db.VarChar(20)
+  rol_fk     Int
+  rol        Rol
+  personas   PERSONA[]
+}
+
+model PERSONA {
+  persona_pk   Int      @id @default(autoincrement())
+  nombres      String   @db.VarChar(30)
+  apellidos    String   @db.VarChar(30)
+  direccion    String   @db.VarChar(150)
+  usuario_fk   Int
+  usuario      USUARIO  @relation(fields: [usuario_fk], references: [usuario_pk])
+  registros     REGISTRO[]
+  fpago_clientes FPago_CLIENTE[]
+}
+
+model SERVICIO_BANCARIO {
+  servicio_pk Int      @id @default(autoincrement())
+  nombre      String   @db.VarChar(20)
+  formas_pago FORMA_PAGO[]
+}
+
+model FORMA_PAGO {
+  forma_pk     Int                     @id @default(autoincrement())
+  numeroTarjeta String                  @db.VarChar(50)
+  nombrePropietario String              @db.VarChar(50)
+  codigo        String                  @db.VarChar(5)
+  fechaExpiracion DateTime              @db.Date
+  servicio_fk   Int
+  servicio      SERVICIO_BANCARIO      @relation(fields: [servicio_fk], references: [servicio_pk])
+  fpago_clientes FPago_CLIENTE[]
+
+  FACTURA FACTURA[]
+}
+
+model FPago_CLIENTE {
+  fpc_pk       Int      @id @default(autoincrement())
+  forma_fk     Int
+  cliente_fk   Int
+  forma        FORMA_PAGO @relation(fields: [forma_fk], references: [forma_pk])
+  cliente      PERSONA  @relation(fields: [cliente_fk], references: [persona_pk])
+}
+
+model PRODUCTOS {
+  producto_pk   Int      @id @default(autoincrement())
+  nombre        String   @db.VarChar(30)
+  precioVenta   Decimal  @db.Decimal(10, 2)
+  descripcion   String   @db.VarChar(150)
+  inventarios   INVENTARIO[]
+  registros     REGISTRO[]
+  fac_productos FAC_PRODUCTO[]
+  pro_serigrafiados PRO_SERIGRAFIADO[]
+  pro_posters   PRO_POSTERS[]
+  pro_impresion PRO_IMPRESION[]
+}
+
+model INVENTARIO {
+  costes_pk   Int      @id @default(autoincrement())
+  precioCompra Decimal   @db.Decimal(10, 2)
+  stock       Int
+  producto_fk Int
+  producto    PRODUCTOS @relation(fields: [producto_fk], references: [producto_pk])
+}
+
+model REGISTRO {
+  registro_pk    Int      @id @default(autoincrement())
+  fecha          DateTime @db.Date
+  administrador_fk Int
+  producto_fk    Int
+  administrador   PERSONA  @relation(fields: [administrador_fk], references: [persona_pk])
+  producto       PRODUCTOS @relation(fields: [producto_fk], references: [producto_pk])
+}
+
+model FACTURA {
+  factura_pk    Int      @id @default(autoincrement())
+  formaPago_fk  Int
+  total         Decimal  @default(0) @db.Decimal(10, 2)
+  fecha         DateTime
+  formaPago     FORMA_PAGO @relation(fields: [formaPago_fk], references: [forma_pk])
+  fac_productos FAC_PRODUCTO[]
+}
+
+model FAC_PRODUCTO {
+  facProducto_pk Int      @id @default(autoincrement())
+  factura_fk     Int
+  producto_fk    Int
+  cantidad       Int
+  factura        FACTURA  @relation(fields: [factura_fk], references: [factura_pk])
+  producto       PRODUCTOS @relation(fields: [producto_fk], references: [producto_pk])
+}
+
+model MATERIAL {
+  material_pk   Int      @id @default(autoincrement())
+  nombre        String   @db.VarChar(40)
+  pro_serigrafiados PRO_SERIGRAFIADO[]
+}
+
+model PRO_SERIGRAFIADO {
+  serigrafiado_pk Int      @id @default(autoincrement())
+  color           String   @db.VarChar(20)
+  tamano          String   @db.VarChar(20)
+  tipoTinta       String   @db.VarChar(20)
+  tipoProducto    String   @db.VarChar(50)
+  material_fk     Int
+  producto_fk     Int
+  material        MATERIAL @relation(fields: [material_fk], references: [material_pk])
+  producto        PRODUCTOS @relation(fields: [producto_fk], references: [producto_pk])
+}
+
+model PRO_POSTERS {
+  poster_pk      Int      @id @default(autoincrement())
+  dimensiones    String   @db.VarChar(20)
+  tipoImpresion  String   @db.VarChar(20)
+  acabado        String   @db.VarChar(20)
+  tipoPapel      String   @db.VarChar(50)
+  calidadImpresion String   @db.VarChar(10)
+  producto_fk    Int
+  producto       PRODUCTOS @relation(fields: [producto_fk], references: [producto_pk])
+}
+
+model PRO_IMPRESION {
+  impresion_pk   Int      @id @default(autoincrement())
+  duracion       String   @db.VarChar(20)
+  resolucion     String   @db.VarChar(20)
+  nroFrames      String   @db.VarChar(20)
+  formato        String   @db.VarChar(50)
+  tipoAnimacion  String   @db.VarChar(10)
+  producto_fk    Int
+  producto       PRODUCTOS @relation(fields: [producto_fk], references: [producto_pk])
+}
