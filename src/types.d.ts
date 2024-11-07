@@ -1,4 +1,5 @@
-export interface users {
-    correo: string, 
-    contrasena: string
+export interface Iuser {
+    email: string, 
+    password: string
 }
+

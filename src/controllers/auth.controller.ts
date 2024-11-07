@@ -1,63 +1,82 @@
 import { NextFunction, Request, Response } from "express";
-import { users } from "../types";
-import { userSchema } from "../schemas";
+import { Iuser } from "../types";
+import { userSchema } from "../schemas/auth";
 import { ErrorCode } from "../exceptions/root";
 import { BadRequestException } from "../exceptions/bad-request";
 import { Prismaclient } from "../index";
+import * as jwt from "jsonwebtoken";
+import {compareSync, hashSync} from 'bcrypt'
 
-export const login = async (req: Request, res: Response, _next: NextFunction) => {
+import {
+  ACCESS_TOKEN_EXPIRATION,
+  JWT_ROUND,
+  JWT_SECRET,
+  REFRESH_TOKEN_EXPIRATION,
+} from "../config";
+
+export const login = async (
+  req: Request,
+  res: Response,
+  _next: NextFunction
+) => {
   try {
     userSchema.parse(req.body);
-    const { correo, contrasena }: users = req.body;
-    
-    
+    const { email, password }: Iuser = req.body;
+
     let user = await Prismaclient.uSUARIO.findFirst({
       where: {
-        correo: correo,
+        email,
       },
     });
     if (!user) {
-      throw new BadRequestException(
-        "user not found",
-        ErrorCode.USER_NOT_FOUND
+      throw new BadRequestException("user not found", ErrorCode.USER_NOT_FOUND);
+    }
+
+    if (compareSync(password, user.password)) {
+      const accesToken = jwt.sign(
+        {
+          password: user.user_pk,
+        },
+        JWT_SECRET,
+        { expiresIn: ACCESS_TOKEN_EXPIRATION }
       );
-    }
-
-    if (user.contrasena === contrasena)
-    {
-      res.status(200).send('Match')
-    }
-    else 
-      res.status(201).send('No match')
-
+      const refreshToken = jwt.sign(
+        {
+          password: password,
+        },
+        JWT_SECRET,
+        { expiresIn: REFRESH_TOKEN_EXPIRATION }
+      );
+      res.json({
+        Tokens: {
+          accesToken: accesToken,
+          refreshToken: refreshToken,
+        },
+      });
+    } else res.status(201).send("No match");
   } catch (err) {
     res.status(400).send(err);
   }
 };
 
-export const createUser = async (req: Request, res: Response) => {
-  const { correo, contrasena }: users = req.body;
-
+export const singup = async (req: Request, res: Response) => {
+  userSchema.parse(req.body);
+  const { email, password }: Iuser = req.body;
   try {
     let user = await Prismaclient.uSUARIO.findFirst({
       where: {
-        correo: correo,
+        email
       },
     });
-
-    console.log(user);
     if (!user) {
-      console.log("in");
-
-      // const data = await Prismaclient.uSUARIO.create({
-      //   data: {
-      //     correo,
-      //     contrasena,
-      //     rol: 'USUARIO',
-      //   },
-      // });
-      // console.log(data);
-      // res.json(data);
+      const data = await Prismaclient.uSUARIO.create({
+        data: {
+          email, 
+          password : hashSync(password, JWT_ROUND), 
+          rol: "USER",
+        },
+      });
+      res.json(data);
     } else {
       throw new BadRequestException(
         "User already exists",
@@ -70,7 +89,5 @@ export const createUser = async (req: Request, res: Response) => {
 };
 
 export const getUsers = async (_req: Request, res: Response) => {
-  const data = await Prismaclient.uSUARIO.findMany();
-
-  res.json(data);
+  res.json("Hello im api");
 };
